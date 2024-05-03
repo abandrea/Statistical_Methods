@@ -15,11 +15,11 @@ We were assigned a dataset concerning Health Care in Australia. For the presenta
 
 The group that worked on this project is composed of:
 
-- Andrea Buscema
-- Omar Cusma Fait
-- Tanja Derin
-- Christian Špringer
-- Uroš Živanović
+- Andrea Buscema @abandrea
+- Omar Cusma Fait @Omega97
+- Tanja Derin @tanjaderin
+- Christian Špringer @CSpringe20
+- Uroš Živanović @Chromeilion
 
 The team, with its diverse academic backgrounds including economics, mathematics, physics and artificial intelligence, was able to benefit from analysing the project from different perspectives and was able to obtain excellent feedback. 
 
