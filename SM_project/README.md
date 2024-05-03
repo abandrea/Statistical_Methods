@@ -36,7 +36,7 @@ Structure of the repository:
 ```diff
 Project
 - Works directories: 
-+ andrea, chris, omar, tanja, uros
++ andrea, chris, omar, tanja, uros, testing_extra_stuff
 - Reports: 
 ! GroupO_FinalProject.Rmd, GroupO_FinalProject.html, GroupO_FinalProject.pdf
 ```
