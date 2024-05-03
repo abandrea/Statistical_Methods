@@ -15,15 +15,20 @@ We were assigned a dataset concerning Health Care in Australia. For the presenta
 
 The group that worked on this project is composed of:
 
-- Andrea Buscema @abandrea
-- Omar Cusma Fait @Omega97
-- Tanja Derin @tanjaderin
-- Christian Špringer @CSpringe20
-- Uroš Živanović @Chromeilion
+| Author | Github |
+| --- | --- |
+| Andrea Buscema | [@abandrea](https://github.com/abandrea)|
+| Omar Cusma Fait | [@Omega97](https://github.com/Omega97)|
+| Tanja Derin | [@tanjaderin](https://github.com/tanjaderin)|
+| Christian Špringer | [@CSpringe20](https://github.com/CSpringe20)|
+| Uroš Živanović | [@Chromeilion](https://github.com/Chromeilion)|
+
 
 The team, with its diverse academic backgrounds including economics, mathematics, physics and artificial intelligence, was able to benefit from analysing the project from different perspectives and was able to obtain excellent feedback. 
 
 ## About the dataset assigned
 
 For what concerns the dataset, is based on the Australian health survey from 1977 to 1978. 
+
+(WIP)
 
