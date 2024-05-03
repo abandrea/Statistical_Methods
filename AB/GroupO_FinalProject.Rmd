@@ -1,0 +1,154 @@
+---
+title: "GroupO_HM2"
+author: 'Buscema Andrea, Cusma Fait Omar, Derin Tanja, Zivanovic Uros, '
+date: "2024-03-01"
+output:
+  html_document:
+    toc: true
+    toc_depth: '3'
+    df_print: paged
+  pdf_document:
+    toc: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Demand for health care in Australia
+
+## ABSTRACT
+
+In this final project for the course "344SM - Statistical Methods" we will analyze the dataset based on the Australian health survey from 1977 to 1978. the dataset contains information of 5190 individuals and 19 variables, including the response variable 'doctorco', which is the number of consulations with a doctor or specialist in the past 2 weeks. 
+
+For the purpose of this project, after the initial data exploration analysis, including the data cleaning and the data visualization, we will focus on the prediction of the number of consulations with a doctor or specialist in the past 2 weeks. We will use: 
+
+- Negative Binomial regression 
+- Zero-inflated Poisson regression
+- Zero-inflated Negative Binomial regression
+- Hurdle Poisson regression
+- Hurdle Negative Binomial regression
+- Logistic regression (for the binary response variable 'doctorco' = 0 and 'doctorco' > 0)
+- Random Forest
+- Support Vector Machine
+- Neural Network
+- K-Nearest Neighbors
+
+We will compare the models using the AIC and the BIC, and we will use the best model to predict the number of consulations with a doctor or specialist in the past 2 weeks.
+
+**Akaike Information Criterion (AIC)**
+The AIC is based on information theory. It considers both the goodness of fit and the number of parameters in the model to prevent overfitting. Calculation: 
+$$ AIC = 2k - 2ln(L) $$, 
+where k is the number of parameters in the model and L is the maximum value of the likelihood function for the model.
+Lower AIC values indicate a better model. AIC is useful for model selection, where the goal is to choose a model that best explains the data with a minimum number of parameters. It can favor more complex models when sample size is large.
+
+**Bayesian Information Criterion (BIC)**
+The BIC it's similar to AIC but includes a stronger penalty for the number of parameters. It's based on Bayesian probability. Calculation: 
+$$BIC = ln(n)k - 2ln(L) $$, 
+where n is the sample size, k is the number of parameters, and L is the likelihood of the model.
+Like AIC, a lower BIC value indicates a better model. BIC is particularly useful in Bayesian model selection. Tends to penalize complex models more heavily than AIC, especially when sample size is large.
+
+**Comparing AIC and BIC**
+BIC usually penalizes model complexity more than AIC, leading to simpler models. For what concern Sample Size Sensitivity, BIC is more sensitive to sample size changes than AIC. AIC is more focused on predictive accuracy, while BIC provides a good balance between likelihood and model simplicity, making it suitable for identifying the true model. While no single metric is perfect, using both AIC and BIC can provide a more holistic view of model performance They are comparative, not absolute: Both AIC and BIC are relative measures. They are useful in comparing models but do not provide an absolute measure of model quality.
+
+**Dataset**
+The dataset contains information divided into these 19 variables:
+
+* Categorical (Binary) variables:
+  - 'sex': gender of the individual (1 if female, 0 if male);
+  - 'levyplus': 1 if covered by private health insurance fund for private patient in public hospital (with doctor of choice), 0 otherwise;
+  - 'freepoor': 1 if covered by government because of low income, recent immigrant, unemployed, 0 otherwise;
+  - 'freepera': 1 if covered by government because of old-age or disability pension, or because invalid veteran or family of deceased veteran, 0 otherwise;
+  - 'chcond1': 1 if chronic condition(s) but not limited in activity, 0 otherwise;
+  - 'chcond2': 1 if chronic condition(s) and limited in activity, 0 otherwise;
+
+* Categorical (Ordinal) variables:
+  - 'age': age in years divided by 100 (measured as mid-point of the age groups from 15-19 years to 65-69 years with the last group being 70 years and over treated as 72);
+  - 'agesq': 'age' squared;
+  - 'income': Annual income in Australian dollars divided by 1000 (measured as mid-point of coded ranges Nil, < 200, 200-1000, 1001-, 2001-, 3001-, 4001-, 5001-, 6001-, 7001-, 8001-10000, 10001-12000, 12001-14000, with 14001- treated as 15000);
+  - 'hscore': General health questionnaire score using Goldberg's method. High score indicates bad health;
+
+* Discrete variables:
+  - 'illness': Number of illnesses in the past 2 weeks with 5 or more coded as 5;
+  - 'actdays': Number of days in the past 2 weeks with activity limitation due to illness or injury;
+  - 'doctorco': (Response variable) Number of consultations with a doctor or specialist in the past 2 weeks;
+  - 'nondocco': Number of consultations with non-doctor health professional (chemist, optician, physiotherapist, social worker, district community nurse, chiropodist or chiropractor, etc.) in the past 2 weeks;
+  - 'hospadmi': Number of admissions to a hospital, psychiatric hospital, nursing or convalescent home in the past 12 months (up to 5 or more admissions which is coded as 5);
+  - 'hospdays': Number of nights in a hospital, etc. during most recent admission: taken, where appropriate, s the mid-point of the intervals 1, 2, 3, 4, 5, 6, 7, 8-14, 15-30, 31-60, 61-79 with 80 or more admissions coded as 80. If no admission in past 12 months the coded as 0;
+  - 'medicine': Total number of prescribed and nonprescribed medications used in past 2 weeks;
+  - 'prescrib': Number of prescribed medications used in past 2 weeks;
+  - 'nonpresc': Number of nonprescribed medications used in past 2 weeks;
+
+**Considerations and before starting the analysis - Levy in Australia health care in 70-80s**
+
+Health care in Australia during 1977-1978 was is a transitional phase, with major focus on a universal health insurance system called Medibank. The Medibank scheme was introduced by the Whitlam Government in 1975 through the Health Insurance Act 1973. The scheme was intended to provide universal health insurance to all Australians and to provide free treatment in public hospitals. The scheme was to be funded by a 2.5% levy on taxable incomes, an additional levy on high-income earners, as well as government funding. The Medibank scheme was later abolished by the Fraser Government in 1981, and replaced by a government-subsidised private insurance scheme, called Medibank Private, which exists to this day. The dataset we are using is from the period when the Medibank scheme was in place, and it is interesting to see how the health care system was functioning at that time.
+
+The Australian health care system has a federal structure, with responsibilities split between federal and state/territory governments. The federal government was primarly responsible for funding and policy, while the state/territory governments were responsible for the delivery of health care services. The cost of running Medibank was a significant concerns for the government during this period. There were debates aboyt whether Medibank provided truly equitable access for all Australians and concerns about longer waiting times in the public system. 
+
+
+## Explanatory Data Analysis
+
+Despite the oldness of the dataset, it doesn't contain any missing value and the data is clean. Firstly, we will explore the dataset by looking at the distribution of the response variable 'doctorco' and the distribution of the other variables. Then, we will look at the correlation between the variables and the response variable. 
+```{r, echo=FALSE}
+library(readr)
+library(Hmisc)
+data <- read_csv("HealthCareAustralia.csv")
+```
+
+```{r, echo=TRUE}
+# Summary statistics for the entire dataset
+summary(data)
+
+# Specific summary for 'doctorco' column
+summary(data$doctorco)
+
+#histogram for 'doctorco' column
+hist(data$doctorco)
+```
+
+```{r, echo=TRUE}
+describe(data)
+
+```
+
+
+
+## FSDS - Chapter X 
+
+### Ex X.x
+
+*Here the text of the first exercise.*
+
+**Solution**
+
+Add comments to the solution.
+
+
+### Ex X.x
+
+*Here the text of the second exercise.*
+
+**Solution**
+
+Add comments to the solution.
+
+$$ Y \sim N(0,1)$$
+
+## CS - Chapter X 
+
+### Ex X.x
+
+*Here the text of the first exercise from Wood's textbook.*
+
+**Solution**
+
+Add comments to the solution.
+
+$$ X \sim N(0,1)$$
+
+
+
+## References:
+- https://www.health.gov.au/medicare-turns-40/history#:~:text=The%20Australian%20Government%2C%20under%20Prime,Australian%20Labor%20Party%20formed%20government.
+- https://www.nma.gov.au/defining-moments/resources/medicare#:~:text=The%20incoming%20Fraser%20government%20modified,had%20blocked%20while%20in%20opposition.
