@@ -47,6 +47,7 @@ Project
 +   * GroupO_FinalProject.Rmd
 +   * GroupO_FinalProject.html
 +   * GroupO_FinalProject.pdf
++   * PRESENTATION_REPORT.pdf
 
 From Data: 
     * HealthCareAustralia.rda
