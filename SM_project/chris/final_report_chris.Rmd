@@ -1,0 +1,189 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(mgcv)
+library(ROSE)
+
+load("HealthCareAustralia.rda")
+data = ex3.health
+data$ifvisit = ifelse(data$doctorco == 0, 0, 1)
+
+set.seed(42)
+train_indices <- sample(seq_len(nrow(data)), 0.8 * nrow(data))
+train_data <- data[train_indices, ]
+test_data <- data[-train_indices, ]
+```
+# Binary classification problem
+
+We start by analyzing some models where the response variable "doctorco" is transformed into the binary response variable "ifvisit". This binary variable is equal to 0 if "doctorco" is 0, and is equal to 1 otherwise. By doing so, we are modelling the number of people that went to a doctor's visit at least once in the last two weeks.
+
+To start we import the data set and create the "ifvisit" variable. From the following graph we can see the skewness of the data set regarding this variable:
+
+```{r echo=FALSE}
+barplot(table(data$ifvisit), main = "Original data set", xlab="Ifvisit", ylab="Frequency", col="blue")
+```
+
+We can try fitting a GAM using the obtained data set:
+```{r}
+model_gam <- gam(ifvisit ~ s(hospdays) + s(actdays) + age*prescrib + freepoor + hscore + nonpresc + illness, data = train_data, family = binomial(link = "logit"))
+summary(model_gam)
+```
+
+Both the variables "hospdays" and "actdays" were considered as splines after a top to bottom examination of the covariates.
+The summary shows that we can account for approx. 19% of explained deviance at best, which is not a great result so far.
+
+```{r echo=FALSE}
+print(paste("AIC (GAM):", round(AIC(model_gam),2)))
+predicted_counts <- round(predict(model_gam, newdata = test_data, type = "response"))
+true_counts <- test_data$ifvisit
+rmse <- mean(abs(predicted_counts - true_counts))
+print(paste("MAE (GAM):", round(rmse,4)))
+print(paste("Number of true ifvisit:",sum(true_counts)))
+print(paste("Number of ifvisit predicted:", sum(predicted_counts)))
+par(mfrow = c(1, 2))
+barplot(table(true_counts),ylim = c(0, 1000), main = "True ifvisit", col="green")
+abline(h = 100, col = "black", lty = 3)
+abline(h = 900, col = "black", lty = 3)
+barplot(table(predicted_counts),ylim = c(0, 1000), main = "Predicted ifvisit", col="darkgreen")
+abline(h = 100, col = "black", lty = 3)
+abline(h = 900, col = "black", lty = 3)
+par(mfrow = c(1, 1))
+```
+
+The sum of predicted "ifvisit" yealds a total of 93, against the true value of 188, indicating that GAM isn't performing very well at predicting the minority class '1'. To enhance it's abilities, we should further manipulate the data set as shown in the following section.
+
+## Balancing the data set with ROSE
+
+Since we transformed the problem into a binary classification problem we can use techniques to balance the data set. One option is to use ROSE (Random Over-Sampling Examples), a method used for oversampling the minority class in binary classification problems to balance the data set. It involves generating synthetic examples from the existing minority class instances. This can be achieved by randomly selecting a minority class instance and introducing variations to create new synthetic instances.
+```{r warning=FALSE, message=FALSE}
+data.rose <- ROSE(ifvisit ~ ., data = data, seed = 1, hmult.majo = 0)$data
+```
+```{r echo=FALSE}
+data.rose <- abs(data.rose)
+data.rose$hospadmi <- round(data.rose$hospadmi)
+data.rose$actdays <- round(data.rose$actdays)
+data.rose$nondocco <- round(data.rose$nondocco)
+data.rose$hospdays <- round(data.rose$hospdays)
+data.rose$sex <- round(data.rose$sex)
+data.rose$sex <- data.rose$sex - ifelse(data.rose$sex == 2, 1, 0)
+data.rose$levyplus <- round(data.rose$levyplus)
+data.rose$levyplus <- data.rose$levyplus - ifelse(data.rose$levyplus == 2, 1, 0)
+data.rose$freepoor <- round(data.rose$freepoor)
+data.rose$freepoor <- data.rose$freepoor - ifelse(data.rose$freepoor == 2, 1, 0)
+data.rose$freepera <- round(data.rose$freepera)
+data.rose$freepera <- data.rose$freepera - ifelse(data.rose$freepera == 2, 1, 0)
+data.rose$illness <- round(data.rose$illness)
+data.rose$hscore <- round(data.rose$hscore)
+data.rose$chcond1 <- round(data.rose$chcond1)
+data.rose$chcond1 <- data.rose$chcond1 - ifelse(data.rose$chcond1 == 2, 1, 0)
+data.rose$chcond2 <- round(data.rose$chcond2)
+data.rose$chcond2 <- data.rose$chcond2 - ifelse(data.rose$chcond2 == 2, 1, 0)
+data.rose$doctorco <- round(data.rose$doctorco)
+data.rose$medicine <- round(data.rose$medicine)
+data.rose$prescrib <- round(data.rose$prescrib)
+data.rose$nonpresc <- round(data.rose$nonpresc)
+data.rose$ifvisit <- round(data.rose$ifvisit)
+data.rose$ifvisit <- data.rose$ifvisit - ifelse(data.rose$ifvisit == 2, 1, 0)
+data.rose$constant <- round(data.rose$constant)
+data.rose$constant <- data.rose$constant - ifelse(data.rose$constant == 2, 1, 0)
+barplot(table(data.rose$ifvisit), main = "Balanced data set", xlab="Ifvisit", ylab="Frequency", col="pink")
+```
+
+The ROSE method generated some data that were not suitable for the data set, for ex. it generated negative data for variables that can only obtain positive integer values. We solved this problem by taking the absolute value of the data set after the data augmentation was done.
+
+Here ROSE was first used to generate more data, then was considered the absolute value of the dataset since the variables can't obtain negative values, and then rounded accordingly so that every observation has integers as values when the variable is a count.
+
+```{r echo=FALSE, message=FALSE}
+set.seed(42)
+train_indices <- sample(seq_len(nrow(data.rose)), 0.8 * nrow(data.rose))
+train_data <- data.rose[train_indices, ]
+test_data <- data.rose[-train_indices, ]
+```
+
+### GAM with ROSE
+
+We can try again fitting a GAM on this new balanced data set and see if the performance improved:
+```{r}
+model_gam <- gam(ifvisit ~ s(age) + s(actdays) + s(hscore) + s(nondocco) + s(medicine), data=train_data, family = binomial(link = "logit"))
+summary(model_gam)
+```
+
+For this model five covariates were selected in order to predict the response variable, those being "actdays", "hscore", "age", "medicine" and "nondocco", all five of them being considered as splines. The selection was done by including all the variables and sequentially cutting those not fit for the model.
+
+We can appreciate a huge improvement over the previous model, getting to a high value of approx. 80% explained deviance.
+
+We can see from the following plot the splines considered:
+
+```{r echo=FALSE}
+par(mfrow=c(2,3))
+plot(model_gam, select=1, ylim = c(-100, 100))
+plot(model_gam, select=2, ylim = c(-100, 600))
+plot(model_gam, select=3, ylim = c(-5, 5))
+plot(model_gam, select=4, ylim = c(-10, 10))
+plot(model_gam, select=5, ylim = c(-10, 10))
+par(mfrow=c(1,1))
+```
+
+From the "age" spline we can infer that being "young" leads generally to a moderate amount of visits, being "adult" leads to less people going to the doctor, while being "old" implies a big chance of going to a doctor's visit. This follows the common logic and experience, so it's a good sign of the model working.
+Generally, high values of all the covariates implies a high chance of going to the doctor, as can be see in the previous plots.
+
+
+```{r echo=FALSE, message=FALSE}
+predicted_counts <- round(predict(model_gam, newdata = test_data, type = "response"))
+true_counts <- test_data$ifvisit
+rmse <- mean(abs(predicted_counts - true_counts))
+
+print(paste("AIC (GAM):", round(AIC(model_gam),2)))
+print(paste("MAE (GAM):", round(rmse,5)))
+print(paste("Number of true ifvisit:",sum(true_counts)))
+print(paste("Number of ifvisit predicted:", sum(predicted_counts)))
+
+par(mfrow = c(1, 2))
+barplot(table(true_counts),ylim = c(0, 1000), main = "True ifvisit",  col="red")
+abline(h = 500, col = "black", lty = 3)
+barplot(table(predicted_counts),ylim = c(0, 1000), main = "Predicted ifvisit", col="orange")
+abline(h = 500, col = "black", lty = 3)
+par(mfrow = c(1, 1))
+```
+
+As we can see from these results, the sum of predicted "ifvisit" gets close to the true value while also maintaining a low MAE value, meaning that the model is predicting correct values pretty consistently.
+
+### GLM with ROSE 
+
+Now let's try fitting a GLM to the same balanced data set and see if it can compete with the GAM one:
+```{r}
+model_glm <- glm(ifvisit ~  hospadmi + nondocco + illness + actdays + prescrib + nonpresc, data = train_data, family = binomial)
+summary(model_glm)
+```
+
+Firstly, we can see that the AIC is two times the AIC from the GAM model. Furthermore, the explained deviance is at best around 50%, which is a better result but still not as good as GAM.
+```{r echo=FALSE, message=FALSE}
+predicted_counts <- round(predict(model_glm, newdata = test_data, type = "response"))
+true_counts <- test_data$ifvisit
+
+rmse <- mean(abs(predicted_counts - true_counts))
+print(paste("MAE (GLM):", round(rmse,4)))
+print(paste("Number of true ifvisit:",sum(true_counts)))
+print(paste("Number of ifvisit predicted:", sum(predicted_counts)))
+
+par(mfrow = c(1, 2))
+barplot(table(true_counts),ylim = c(0, 1000), main = "True ifvisit", col = "purple")
+abline(h = 500, col = "black", lty = 3)
+barplot(table(predicted_counts),ylim = c(0, 1000), main = "Predicted ifvisit", col = "magenta")
+abline(h = 500, col = "black", lty = 3)
+par(mfrow = c(1, 1))
+```
+
+From the obtained results we can see that GAM manages to find a good approximation of the total number of visits while also keeping a low value of MAE, meaning that the predictions are correct most of the times.
+
+On the other hand, GLM is a little worse at predicting the total number of visits (sum of "ifvisit") and it scores double the MAE from GAM meaning that the predictions are overall worse but still useful. GAM manages to understand better the variable interactions but GLM is faster and simpler to interpret.
+
+From this analysis we can say that augmenting a skewed data set such as the one we are analyzing can improve and ease the binary classification problem, and also that the GAM model is much better, in this particular data set, at accurately predicting if a person has gone to the doctor in the past two weeks or not.
+
+This concludes the binary classification digression, from now on all the models will try to predict the whole "doctorco" variable.

@@ -1,0 +1,285 @@
+---
+title: "Untitled"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-02-25"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(MASS)
+library(caret)
+library(pROC)
+library(PRROC)
+library(pscl)
+
+
+load("HealthCareAustralia.rda")
+data<-ex3.health
+
+data$sex <- factor(data$sex)
+data$levyplus <- as.factor(data$levyplus)
+data$freepoor <- as.factor(data$freepoor)
+data$freepera <- as.factor(data$freepera)
+data$chcond1 <- as.factor(data$chcond1)
+data$chcond2 <- as.factor(data$chcond2)
+
+#age_factor
+thresholds <- c(min(data$age), 0.32, 0.62, max(data$age))
+data$age_factor <- cut(data$age, breaks = thresholds, 
+                       labels = c("young", "adult", "old"), include.lowest = TRUE)
+
+#income_factor
+thresholds <- c(min(data$income), 0.15, 0.45, max(data$income))
+data$income_factor <- cut(data$income, breaks = thresholds, 
+                          labels = c("Low", "Middle", "High"), include.lowest = TRUE)
+
+
+set.seed(42)
+train_indices <- sample(seq_len(nrow(data)), 0.8 * nrow(data))
+train_data <- data[train_indices, ]
+test_data <- data[-train_indices, ]
+
+```
+
+
+## ZERO INFLATED NEGATIVE BINOMIAL
+
+
+Traditional Negative Binomial regression extends Poisson regression to manage overdispersion in count data, but it fails when an unusually high number of zero counts is present. The ZINB model is combining the principles of NB regression with a mechanism to account for excess zeros. Specifically, it differentiates between two sources of zeros: those arising from the data's natural variability "sampling zeros" and those that are structurally inherent or "excess zeros." 
+
+$$
+P(Y_i = y_i) = \left\{
+    \begin{array}{ll}
+        \pi_i + (1 - \pi_i) \frac{\Gamma(r + y_i)}{\Gamma(r) y_i!} \left(\frac{r}{r + \mu_i}\right)^r \left(\frac{\mu_i}{r + \mu_i}\right)^{y_i} & \mbox{if } y_i = 0, \\
+        (1 - \pi_i) \frac{\Gamma(r + y_i)}{\Gamma(r) y_i!} \left(\frac{r}{r + \mu_i}\right)^r \left(\frac{\mu_i}{r + \mu_i}\right)^{y_i} & \mbox{if } y_i > 0.
+    \end{array}
+\right.
+$$
+
+The ZINB model accounts for the excess of zeros through the component $\pi_i$, which represents the probability that an observation will have a count of zero not due to the process described by the Negative Binomial distribution but due to some other, external process. Another key feature is the dispersion parameter $r$ of the Negative Binomial distribution, which is used to model overdispersion. Smaller values of $r$ indicate greater overdispersion relative to the Poisson distribution.
+
+We use the model 'zeroinfl' that has two parts:
+\begin{itemize}
+\item left of the | symbol: Specifies the variables for the count model part. This part models the actual count of doctor visits based on predictors such as illness, actdays, hscore, chcond1, age:chcond2, hospadmi, prescrib, and nonpresc.
+\item right of the | symbol: Specifies the variables for the zero-inflation model part. This part models the excess zeros, predicting which zeros are "true zeros". Here, predictors like levyplus, age:income:freepoor, freepera, and interactions are used.
+\end{itemize}
+```{r}
+ZINB_model <- zeroinfl(doctorco ~illness * actdays + hscore + chcond1 + age: chcond2 
++ hospadmi  + prescrib + nonpresc|levyplus + age:income:freepoor + freepera
++ illness * actdays + prescrib, data = train_data, dist = "negbin")
+
+AIC(ZINB_model)
+summary(ZINB_model)
+```
+There are significant variables that influence the number of doctor visits. Notably, income factors (both middle and high income showing lower visit rates compared to low-income counterparts), levyplus, health-related variables like illness severity, active days, and hospital admissions directly correlate with increased doctor visits, emphasizing the link between health needs and healthcare demand. Prescription medication requirements further elevate visit frequencies, reflecting ongoing health management needs. Conversely, the use of non-prescription medications is associated with fewer visits, hinting at self-care practices for minor health concerns. 
+
+The interaction term age:income:freepoor1 and its significant positive coefficient suggest that older individuals with higher income who qualify for free healthcare are less likely to visit the doctor. This pattern may arise from various factors such as improved health status, access to alternative health resources, or specific policies that affect their healthcare utilization differently. Additionally, the interaction between illness and actdays demonstrates a significant positive effect, indicating that individuals who are ill and experience more days of activity restriction are more likely to seek medical attention, which aligns with expectations.
+
+In the zero-inflation part, variables like levyplus, freepera, illness, actdays, and prescrib are significant, pointing to specific factors that influence the propensity to have zero visits. 
+
+Theta is a parameter of the Negative Binomial distribution part of the model it is inversely related to the variance; a smaller $\theta$ indicates more dispersion (more variability in count data than what a Poisson model would suggest). Theta of 2.4 suggests some level of overdispersion in the data, but not extremely high
+
+```{r}
+predicted_counts_zinb <- round(predict(ZINB_model, newdata = test_data, type = "response"))
+predicted_category_zinb <- ifelse(predicted_counts_zinb < 1, 0,predicted_counts_zinb)
+
+true_counts <- test_data$doctorco
+mae_zinb <- mean(abs(predicted_counts_zinb - true_counts))
+cat("MAE:", mae_zinb, "\n")
+rmse_zinb <- sqrt(mean((predicted_counts_zinb - true_counts)^2))
+cat("RMSE:", rmse_zinb, "\n")
+```
+
+The modelsts Mean Absolute Error (MAE) is indicating a relatively precise prediction capability given the context of count data; but still has room for improvement, particularly in accurately predicting higher counts of visits as seen from the Root Mean Squared Error (RMSE).
+
+This section explores the examination of binary outcomes—specifically, the presence or absence of doctor visits. By utilizing confusion matrices and metrics such as balanced accuracy and AUC-ROC, we want to evaluate the model's ability to accurately predict actual visits against the backdrop of a skewed distribution
+
+```{r, echo=FALSE}
+actual_binary <- ifelse(true_counts > 0, 1, 0)
+predicted_binary_zinb <- ifelse(predicted_counts_zinb > 0, 1, 0)
+conf_matrix_zinb <- table(Actual = actual_binary, Predicted = predicted_binary_zinb)
+
+confusionMatrix(as.factor(predicted_binary_zinb), as.factor(actual_binary))
+
+
+# Balanced accuracy
+balanced_accuracy_zinb <- (sensitivity(conf_matrix_zinb, positive = "1") + specificity(conf_matrix_zinb, positive = "1")) / 2
+cat("Balanced Accuracy:", balanced_accuracy_zinb, "\n")
+
+# AUC-ROC
+roc_result_zinb <- roc(actual_binary, as.numeric(predicted_binary_zinb) - 1)
+auc_roc_zinb <- auc(roc_result_zinb)
+cat("AUC-ROC:", auc_roc_zinb, "\n")
+```
+
+The high accuracy indicates that almost all predictions made by the model are correct. This is a relatively high overall accuracy rate. The sensitivity of reflects the model's strong performance in predicting non-visits accurately, a result of the data's inherent imbalance towards this outcome. 
+
+However, the model's balanced accuracy and an AUC-ROC score suggest that while the model is better than a dummy classifier, there is room for improvement, particularly in correctly identifying actual visits.
+
+
+By plotting distribution of both actual and predicted visits, we gain insights into the model's performance in capturing the true distribution of healthcare utilization. Additionally, examining the specific actual versus predicted counts across visit frequencies enables us to identify where the model performs well. 
+
+```{r}
+actual_freq <- table(true_counts)
+predicted_freq_zinb <- table(predicted_counts_zinb)
+
+par(mfrow=c(1,2))
+
+# Bar plot for Actual Counts
+barplot(actual_freq, main="Actual Visits", xlab="Doctor Visits Count",
+        ylab="Frequency", col="lightblue")
+
+# Bar plot for Predicted Counts
+barplot(predicted_freq_zinb, main="Predicted Visits", xlab="Predicted Visits Count",
+        ylab="Frequency", col="darkblue")
+
+par(mfrow=c(1,1))
+
+
+for (i in 0:9) {
+  actual_ <- true_counts == i
+  predicted_ <- predicted_counts_zinb == i
+  actual_count <- sum(actual_)
+  predicted_count<- sum(predicted_)
+  cat("Actual count for", i, "Visits:", actual_count, "\n")
+  cat("Predicted count for", i, "Visits:", predicted_count, "\n\n")
+}
+```
+
+The model does well at predicting when there are no doctor visits, although it predicts slightly more zeros than there actually are. However, as the number of visits goes up, the model does not do as well. It is close when predicting one visit but starts to fall short with two visits and struggles more as the visit numbers increase, not predicting any visits of five or more at all. This gap between the actual and predicted numbers, especially for higher counts of visits, suggests that the model might need some improvements or additional data to better predict these less common situations.
+
+
+## HURDLE NEGATIVE BINOMIAL
+
+
+The hurdle model offers a distinct approach to modeling count data, unlike Zero-Inflated models, hurdle models decompose the prediction process into two sequential components: a binary process for distinguishing between zero and non-zero counts, followed by a truncated count distribution model exclusively for the positive counts. 
+This structure creates a "hurdle" that separates zero predictions from positive ones, meaning observations must first cross this hurdle before they are considered for positive count predictions. 
+
+In the hurdle model framework, the probability of observing a zero count (\(y_i = 0\)) is denoted by \(p_i\), while the distribution of positive counts (\(y_i > 0\)) follows a truncated distribution, adjusted to exclude the probability of zero counts. The mathematical representation of the HNB model is as follows:
+
+\[
+P(Y_i = y_i) = 
+\begin{cases} 
+p_i & \text{if } y_i = 0, \\
+(1 - p_i) \frac{p(y_i; \mu_i)}{1 - p(y_i = 0; \mu_i)} & \text{if } y_i > 0,
+\end{cases}
+\]
+
+Here, \(p_i\) delineates the probability that an observation falls into the zero count category, while \(p(y_i; \mu_i)\) denotes the probability mass function (PMF) for positive counts, parameterized by \(\mu_i\), within a Negative Binomial distribution managing the observed overdispersion in the data.
+
+The HNB model separates the prediction of no visits from the prediction of one or more visits to better understand healthcare usage. It first decides if a visit happens at all and then predicts how many visits will happen if it does. The model uses different factors to predict both the chance of no visits and the expected number of visits, helping us understand what influences these outcomes. 
+
+The hurdle model implemented with the 'pscl' library in R is designed dividing the modeling process into two distinct parts separated by '|'. 
+
+```{r cars}
+hurdle_model <- hurdle(doctorco ~ illness + actdays + hospadmi|income:freepoor + 
+                         actdays *illness + sex*hscore + hospadmi + prescrib + nonpresc,
+                       data = train_data, dist ="negbin")
+
+AIC(hurdle_model)
+summary(hurdle_model)
+
+#hurdle with factors
+hurdle_model2 <- hurdle(doctorco ~ income_factor+illness +  actdays+ hospadmi|
+                          income:freepoor + actdays *illness + sex*hscore + hospadmi +
+                          age_factor*prescrib + nonpresc,
+                        data = train_data, dist = "negbin")
+
+AIC(hurdle_model2)
+
+```
+
+Key findings from the model coefficients suggest that factors such as income level, illness severity, the number of activity days, hospital admissions, and prescription medication usage significantly influence both the likelihood of making any doctor visit and the frequency of those visits among patients who do. 
+
+Notably, the interaction terms, such sex with health score, underscore how the combined effect of these variables can either increase or decrease the likelihood of seeking medical care. For instance, the significant negative coefficient for the interaction between income and freepoor1 suggests that patients from lower-income brackets with access to free poor services are less likely to have zero visits, indicating targeted healthcare access among vulnerable populations.
+
+The theta value, reported as 0.1933 in the count model, is indicative of the degree of overdispersion relative to what a Poisson distribution would predict. A theta value significantly lower than 1 points towards high overdispersion, validating the choice of a negative binomial distribution over a Poisson.
+
+
+```{r}
+predicted_counts_hurdle <- round(predict(hurdle_model, newdata=test_data, type = "response"))
+predicted_category_hnb <- ifelse(predicted_counts_hurdle< 1, 0, predicted_counts_hurdle)
+
+
+true_counts <- test_data$doctorco
+mae_hurdle <- mean(abs(predicted_counts_hurdle- true_counts))
+cat("MAE:", mae_hurdle, "\n")
+rmse_hurdle <- sqrt(mean((predicted_counts_hurdle - true_counts)^2))
+cat("RMSE:", rmse_hurdle, "\n")
+```
+The MAE indicates a relatively small deviation, suggesting that the model's predictions are, on average, close to the true number of visits. The RMSE, which penalizes larger errors more heavily, is higher, suggesting that there are some instances of larger prediction errors, but overall, the model demonstrates a decent level of accuracy.
+
+Also for the hurdle model, we evaluate alternative metrics for the binary outcome, focusing on the dichotomy of having or not having doctor visits. Employing confusion matrices, balanced accuracy, and AUC-ROC, this analysis aims to assess the model's precision in distinguishing actual visits in a dataset significantly skewed towards non-visits. 
+
+```{r}
+
+actual_binary <- ifelse(true_counts > 0, 1, 0)
+predicted_binary <- ifelse(predicted_counts_hurdle > 0, 1, 0)
+conf_matrix <- table(Actual = actual_binary, Predicted = predicted_binary)
+confusionMatrix(as.factor(predicted_binary), as.factor(actual_binary))
+
+
+# Balanced accuracy
+balanced_accuracy <- (sensitivity(conf_matrix, positive = "1") +
+                        specificity(conf_matrix, positive = "1")) / 2
+cat("Balanced Accuracy:", balanced_accuracy, "\n")
+
+# AUC-ROC
+roc_result <- roc(actual_binary, as.numeric(predicted_binary) - 1)
+auc_roc <- auc(roc_result)
+cat("AUC-ROC:", auc_roc, "\n")
+
+```
+The confusion matrix generated from this analysis revealed that the model correctly predicted 788 instances with no visits and 66 instances where visits occurred, against 62 false positives and 122 false negatives. This resulted in a high accuracy rate, a figure slightly higher than the no information rate, indicating the model's predictive capability beyond random chance, albeit with room for improvement, particularly in correctly identifying positive instances.
+
+The model demonstrated a high sensitivity, indicating a strong ability to correctly identify true negatives, but a lower specificity, reflecting challenges in accurately predicting true positives. The balanced accuracy, an average of sensitivity and specificity is suggesting a need to enhance the model's ability to balance both types of correct predictions. The Area Under the Receiver Operating Characteristic curve (AUC-ROC) is showcasing the model's fair discrimination ability between zero and non-zero visit
+
+The model is adept at identifying a significant portion of the non-visits (as evidenced by high sensitivity), it struggles more with accurately predicting actual visits (reflected in lower specificity and NPV). This can happen if the model better captures the zero-inflation aspect but less so the count distribution among the positive outcomes. in the following part we will take a look at how the model predicts the count part of the model.
+
+```{r}
+
+actual_freq <- table(true_counts)
+predicted_freq <- table(predicted_counts_hurdle)
+
+par(mfrow=c(1,2))
+
+# Bar plot for Actual Counts
+barplot(actual_freq, main="Actual Visits", xlab="Doctor Visits Count",
+        ylab="Frequency", col="lightblue")
+
+# Bar plot for Predicted Counts
+barplot(predicted_freq, main="Predicted Visits", xlab="Predicted Visits Count", 
+        ylab="Frequency", col="darkblue")
+
+par(mfrow=c(1,1))
+
+for (i in 0:9) {
+  actual_ <- true_counts == i
+  predicted_ <- predicted_counts_hurdle == i
+  actual_count <- sum(actual_)
+  predicted_count <- sum(predicted_)
+  cat("Actual count for", i, "Visits:", actual_count, "\n")
+  cat("Predicted count for", i, "Visits:", predicted_count, "\n\n")
+}
+
+```
+
+
+The hurdle model shows a good ability to predict no doctor visits, with a prediction slightly higher than the actual numbers. For one visit, the model underpredicts, indicating some difficulty in accurately forecasting lower visit counts. This trend of underprediction continues for two visits and becomes more noticeable for higher visit counts, with the model predicting fewer visits than actually occurred, and failing to predict any instances of five or more visits, except for a single prediction for seven visits. This pattern suggests that while the hurdle model can effectively identify cases with no visits, its performance in predicting actual visit counts, especially for rarer higher visit counts, is limited.
+
+
+# ZI VS HURDLE
+
+Both models demonstrate strength in predicting no visits, with the hurdle model predicting slightly more no-visit cases than the zero-inflated model. However, when it comes to predicting actual visits, both models struggle with higher counts, underestimating the actual occurrences. The zero-inflated model appears to provide a closer approximation for one visit but also fails to predict visits of five or more. In contrast, the hurdle model underpredicts across most visit counts more significantly, including one visit, and barely predicts higher visit counts
+
+Zero-inflated and hurdle models address excess zeros in count data differently. The ZINB model is particularly useful when the data include both 'structural zeros'—instances where no visits occur due to lack of necessity or access—and 'sampling zeros,' where visits could have occurred but did not. This model separates the data into two processes: one that models the probability of excess zeros and another that models the count of visits among those expected to have them, using a negative binomial distribution to account for overdispersion.
+
+The HNB model treats all zeros as coming from a single process but separates the analysis into two stages: a binary outcome predicting the occurrence of any visits and a truncated count model for the number of visits among those who have at least one. This approach is effective when the focus is on distinguishing between non-use and use of healthcare services. The interpretation of a hurdle model is more straightforward, focusing on the hurdle of initiating healthcare service use before addressing the frequency of use among those who cross that hurdle.
+
+The fact that the ZINB model has a lower AIC indicates that it provides a better fit to the data, suggesting that the additional complexity of separating the zero observations into those that are structurally zero and those that are zeros due to sampling is justified by the data. The lower MAE suggests that the ZINB model is more accurate in predicting the actual number of doctor visits, including accurately predicting the absence of visits. It indicates that a significant portion of the zero visits can be attributed to individuals who are not just non-users of healthcare services by chance but are systematically different from those who do visit doctors. 
+
+The choice of the Negative Binomial distribution over the Poisson distribution for both models is crucial due to the observed overdispersion in the data—where. The Negative Binomial distribution introduces an additional parameter to model the variance, providing a more flexible and accurate fit for count data that cannot be adequately modeled by the Poisson distribution's equal mean and variance assumption.
