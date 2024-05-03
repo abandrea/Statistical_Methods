@@ -1,7 +1,7 @@
 # Demand for health care in Australia
 _____
 
-Structure of the repository:
+# Structure of the repository:
 
 ```
 ⦿--SM_project
@@ -36,13 +36,31 @@ Structure of the repository:
 ```diff
 Project
 - Works directories: 
-+ andrea, chris, omar, tanja, uros, testing_extra_stuff
-- Reports: 
-# GroupO_FinalProject.Rmd, GroupO_FinalProject.html, GroupO_FinalProject.pdf
+    * andrea 
+    * chris 
+    * omar 
+    * tanja
+    * uros
+    * testing_extra_stuff
++ Reports: 
+    * GroupO_FinalProject.Rmd
+    * GroupO_FinalProject.html
+    * GroupO_FinalProject.pdf
+! Data: 
+    * HealthCareAustralia.rda
+    * HealthCareAustralia.csv
+    * DemandHealthCareAustralia.pdf
 ```
+________
 
-_____
-## About the project
+## Important notes
+
+_Although the project was a group effort, the repository contains several directories for each group member where specific tests and/or validations were performed for the final report and so that any extra implementations and analyses can be followed up._
+
+__This project is W.I.P. for future implementations and the README file will be updated as the project progresses.__
+________
+
+# About the project
 
 In this final project for the course "344SM - Statistical Methods" we were assigned a dataset concerning australian health survey from 1977 to 1978. The dataset contains information of 5190 individuals and 19 variables, including the response variable `doctorco`, which is the number of doctor consulations with a doctor or specialist in the past 2 weeks. 
 
@@ -63,7 +81,7 @@ The whole project was implemented with two programming languages, R and Python, 
 
 ________
 
-## Considerations before starting the analysis - Levy in Australia health care in 70-80s
+# Considerations before starting the analysis - Levy in Australia health care in 70-80s
 
 Health care in Australia during 1977-1978 was is a transitional phase, with major focus on a universal health insurance system called Medibank. The Medibank scheme was introduced by the Whitlam Government in 1975 through the Health Insurance Act 1973. The scheme was intended to provide universal health insurance to all Australians and to provide free treatment in public hospitals. The scheme was to be funded by a 2.5% levy on taxable incomes, an additional levy on high-income earners, as well as government funding. The Medibank scheme was later abolished by the Fraser Government in 1981, and replaced by a government-subsidised private insurance scheme, called Medibank Private, which exists to this day. The dataset we are using is from the period when the Medibank scheme was in place, and it is interesting to see how the health care system was functioning at that time.
 
@@ -71,7 +89,7 @@ The Australian health care system has a federal structure, with responsibilities
 
 ________
 
-Structure of the project:
+# Structure of the project:
 
 ```
 
@@ -165,8 +183,4 @@ ________
 
 - Packages used: `ggplot2`, `Hmisc`, `mgcv`, `pROC`, `PRROC`, `pscl`, `reticulate`, `ROSE`, `tidyverse`, `base`, `datasets`, `dplyr`, `forcats`, `graphics`, `grDevices`, `lattice`, `lubridate`, `MASS`, `methods`, `nlme`, `purrr`, `readr`, `rlang`, `stats`, `stringr`, `tibble`, `tidyr`, `utils`.
 
-________
-### Notes
-
-This project is W.I.P. and the README file will be updated as the project progresses.
-
+_______________
