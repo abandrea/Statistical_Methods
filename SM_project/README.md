@@ -42,11 +42,13 @@ Project
     * tanja
     * uros
     * testing_extra_stuff
+
 + Reports: 
-    * GroupO_FinalProject.Rmd
-    * GroupO_FinalProject.html
-    * GroupO_FinalProject.pdf
-! Data: 
++   * GroupO_FinalProject.Rmd
++   * GroupO_FinalProject.html
++   * GroupO_FinalProject.pdf
+
+From Data: 
     * HealthCareAustralia.rda
     * HealthCareAustralia.csv
     * DemandHealthCareAustralia.pdf
