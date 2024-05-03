@@ -1,6 +1,47 @@
 # Demand for health care in Australia
 _____
 
+Structure of the repository:
+
+```
+⦿--SM_project
+|   |-- README.md
+|   |-- DemandHealthCareAustralia.pdf
+|   |-- HealthCareAustralia.rda 
+|   |-- HealthCareAustralia.csv
+|   |-- GroupO_FinalProject.Rmd
+|   |-- GroupO_FinalProject.html
+|   |-- GroupO_FinalProject.pdf
+|   |-- andrea
+|   |   |--
+|   |   └--
+|   |-- chris
+|   |   |--
+|   |   └-- 
+|   |-- omar
+|   |   |--
+|   |   └--
+|   |-- tanja
+|   |   |--
+|   |   └--
+|   |-- uros
+|   |   |--
+|   |   └-- 
+|   |-- data
+|   |-- testing_extra_stuff
+|   └-- figures
+|-- README.md
+```
+
+```diff
+Project
+- Works directories: 
++ andrea, chris, omar, tanja, uros
+- Reports: 
+! GroupO_FinalProject.Rmd, GroupO_FinalProject.html, GroupO_FinalProject.pdf
+```
+
+_____
 ## About the project
 
 In this final project for the course "344SM - Statistical Methods" we were assigned a dataset concerning australian health survey from 1977 to 1978. The dataset contains information of 5190 individuals and 19 variables, including the response variable `doctorco`, which is the number of doctor consulations with a doctor or specialist in the past 2 weeks. 
