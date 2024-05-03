@@ -38,7 +38,7 @@ Project
 - Works directories: 
 + andrea, chris, omar, tanja, uros, testing_extra_stuff
 - Reports: 
-! GroupO_FinalProject.Rmd, GroupO_FinalProject.html, GroupO_FinalProject.pdf
+# GroupO_FinalProject.Rmd, GroupO_FinalProject.html, GroupO_FinalProject.pdf
 ```
 
 _____
