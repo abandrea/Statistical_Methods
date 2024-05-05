@@ -12,19 +12,19 @@ _____
 |   |-- GroupO_FinalProject.Rmd
 |   |-- GroupO_FinalProject.html
 |   |-- GroupO_FinalProject.pdf
-|   |-- andrea
+|   |-- eda_cluster_analysis
 |   |   |--
 |   |   └--
-|   |-- chris
+|   |-- gam_rose_hurdle
 |   |   |--
 |   |   └-- 
-|   |-- omar
+|   |-- ml_models
 |   |   |--
 |   |   └--
-|   |-- tanja
+|   |-- zinb_hurdle_nb
 |   |   |--
 |   |   └--
-|   |-- uros
+|   |-- cluster_mca
 |   |   |--
 |   |   └-- 
 |   |-- data
@@ -35,21 +35,13 @@ _____
 
 ```diff
 Project
-- Works directories: 
-    * andrea 
-    * chris 
-    * omar 
-    * tanja
-    * uros
-    * testing_extra_stuff
-
 + Reports: 
 +   * GroupO_FinalProject.Rmd
 +   * GroupO_FinalProject.html
 +   * GroupO_FinalProject.pdf
 +   * PRESENTATION_REPORT.pdf
 
-From Data: 
+- From Data: 
     * HealthCareAustralia.rda
     * HealthCareAustralia.csv
     * DemandHealthCareAustralia.pdf
@@ -58,7 +50,7 @@ ________
 
 ## Important notes
 
-_Although the project was a group effort, the repository contains several directories for each group member where specific tests and/or validations were performed for the final report and so that any extra implementations and analyses can be followed up._
+_Although the project was a group effort, the repository contains several directories where specific tests and/or validations were performed for the final report and so that any extra implementations and analyses can be followed up._
 
 __This project is W.I.P. for future implementations and the README file will be updated as the project progresses.__
 ________
